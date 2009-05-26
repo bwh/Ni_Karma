@@ -1,18 +1,18 @@
 -- Ni Karma System (NKS) for raid loot distribution
 -- The Ni Karma System was designed by Vuelhering (stef+nks @swcp.com) and Qed of Icecrown
--- 
+--
 -- Plugin coded by Mavios of Icecrown (althar @gmail.com).  Thanks Mavios, you rock.
 -- Code maintenance and additional programming by Mavios and Vuelhering
 -- Instructions for use at http://www.knights-who-say-ni.com/NKS
--- 
+--
 -- Copyright 2006-2008, Mavios and Vuelhering, Knights who say Ni, Icecrown
--- 
+--
 -- Permission granted for use, modification, and distribution provided:
 -- 1. Any distributions include the original distribution in its entirety, OR a working URL to freely get the entire original distribution is clearly listed in the documentation.
 -- 2. Any modified distributions clearly mark YOUR changes, or document the changes somehow.
 -- 3. Any modified distributions MUST NOT imply in any way that it is an official upgrade version of this software (such as NKS+ or Enhanced Karma System, or probably anything with "NKS" or "Karma" in the name).  If you want your changes in the official distribution, write (stef+nks @swcp.com) and it might get included.
 -- 4. No fee is charged for any distribution of this software (modified or original).
--- 
+--
 -- Snippets of code "borrowed" (fewer than 100 total lines) can merely include the URL http://www.knights-who-say-ni.com/NKS and credit for the code used.
 -- The Ni_Karma.toc file is granted to the public domain, so it can be updated without issue.
 
@@ -44,6 +44,9 @@ local OpenRoll = false;
 local min_deduction = 0;
 local max_deduction = 0;
 
+local class_broken = "fixlocal"
+local class_unknown = "unknown"
+
 local extratext = ""; -- used for Karma_GetNextTok
 
 local configpanel = {};	-- interface config panel
@@ -64,8 +67,8 @@ KarmaDefaults["CURRENT RAID"] = nil; -- used to see if active or not
 
 function Karma_OnLoad(event)
 
-  this:RegisterEvent("VARIABLES_LOADED"); 
-  this:RegisterEvent("CHAT_MSG_WHISPER"); 
+  this:RegisterEvent("VARIABLES_LOADED");
+  this:RegisterEvent("CHAT_MSG_WHISPER");
 
   -- add command
   SlashCmdList["KARMA"] = Karma_command;
@@ -90,8 +93,8 @@ function Karma_ChatFrame_OnEvent(self,event,...)
     if (event == "CHAT_MSG_WHISPER_INFORM" and string.find(arg1, "KarmaBot: ")
         and (not KarmaConfig["SHOW_WHISPERS"])) then
       Suppressed = true;
-     
-    elseif (event == "CHAT_MSG_WHISPER" and cmd == "km" 
+
+    elseif (event == "CHAT_MSG_WHISPER" and cmd == "km"
         and (not KarmaConfig["SHOW_WHISPERS"])) then
       Suppressed = true;
 
@@ -118,10 +121,10 @@ function Karma_OnEvent(event)
 	KarmaConfig["VERSION"] = Version;
   end
 
-  if (not Active) then 
+  if (not Active) then
     return;
   end
-    
+
   if (event == "CHAT_MSG_WHISPER" and string.lower(string.sub(arg1,1,2)) == "km") then
     local cmd, extra = Karma_GetToken(arg1);
     cmd = Karma_StripTok(cmd);
@@ -179,10 +182,10 @@ function Karma_command(msg)
 
     elseif (cmd ==KMSG.COPTION) then
       Karma_Options(subcmd);
- 
+
     elseif (cmd == KMSG.CCOMPACT) then
       Karma_Compact(subcmd);
-      
+
     elseif (cmd == KMSG.CINFO) then
       if (Active) then
         Karma_message(KMSG.USINGRAID .. Raid_Name .. ")");
@@ -204,7 +207,7 @@ function Karma_command(msg)
 
     elseif (cmd == KMSG.CSHOW) then
       Karma_Show(subcmd);
-      
+
     elseif (cmd == KMSG.CADD) then
       Karma_Add(subcmd, "P");
 
@@ -214,7 +217,7 @@ function Karma_command(msg)
     else
       Karma_Help();
 
-    end 
+    end
   end
 end
 
@@ -292,7 +295,7 @@ function ConfigPanel_OnLoad (panel)
 	subpanel.name = "test subpanel"
 
     InterfaceOptions_AddCategory(panel);
-end 
+end
 
 
 
@@ -308,33 +311,44 @@ function Karma_Player_Help(player)
   Karma_message(KMSG.PLAYER_HELP3, KARMA_SHOWTO_PLAYER, player);
 end
 
+-- returns classname stored in db.  This is non-localized.
+function Karma_GetDBClass(class)
+    if class == nil then
+        return nil
+	end
+    return KMSG.CLASS[string.lower(class)]
+end
+
 function Karma_Show(cmd)
 
   if (cmd ~= "") then
     -- Get name and optional TO
     local player, extra = Karma_GetToken(cmd);
+	local dbclass = Karma_GetDBClass(player);
 
     -- Check for class display
-    if (string.find(KMSG.allclasses, "|" .. player .. "|", 1, true) ~= nil) then
+    -- Note that this can fail if some imaginative idiot names his character the same as a class.
+	-- I check class first, so that it won't break functionality of showing an entire class.
+    if (dbclass ~= nil) then
 
 	-- Loop through raid members, showing matching class
       local raidcnt = GetNumRaidMembers();
       for i = 1, raidcnt do
         local name, _, _, _, class = GetRaidRosterInfo(i);
-        if (player == string.lower(class)) then
+        if (dbclass == Karma_GetDBClass(class)) then
           Karma_Show_Detail(string.lower(name), extra);
         end
       end
-      
+
     elseif (player == KMSG.ALL) then
-      
+
       -- Loop through all raid members
       local raidcnt = GetNumRaidMembers();
       for i = 1, raidcnt do
-        local name, _, _, _, class = GetRaidRosterInfo(i);
+        local name, _, _, _, _ = GetRaidRosterInfo(i);
         Karma_Show_Detail(string.lower(name), extra);
       end
-      
+
     else
       Karma_Show_Detail(player, extra);
     end
@@ -347,39 +361,53 @@ end
 
 
 -- return lowercase name/index, name as seen, and class
--- if not found in raid, return name/name/unknown
+-- if not found in raid but found in db, return name/name/class
+-- if not found in raid or db, return name/name/unknown
 function Karma_Getstats(player_name)
   player = string.lower(player_name);  -- index is lowercase
 
-  local fullname, class, i;
+  local fullname, class, i, dbclass;
   local raidcnt = GetNumRaidMembers();
   for i = 1, raidcnt do
     fullname, _, _, _, class = GetRaidRosterInfo(i);
-    if (string.lower(fullname) == player) then 
+	dbclass = Karma_GetDBClass(class)
+	if (dbclass == nil) then
+	  dbclass = class_broken
+    end
+    if (string.lower(fullname) == player) then
       return player, fullname, class;
     end
   end
-  return player, player, "unknown";
+  if (KarmaList[Raid_Name][player] ~= nil) then
+	  return player, KarmaList[Raid_Name][player].fullname, KarmaList[Raid_Name][player].class
+  end
+  return player, player, class_unknown;
 end
+
 
 function Karma_Newplayer(player_name)
   if (not Active) then
     return;
   end
   local player, name, class = Karma_Getstats(player_name);
+  local dbclass = Karma_GetDBClass(class);
 
   if (KarmaList[Raid_Name][player] ~= nil) then
 	  Karma_message("Error in Karma_Newplayer - player " .. player .. " exists!");
 	  return;
   end
+  if (dbclass == nil) then
+      dbclass = class_broken
+  end
   KarmaList[Raid_Name][player] = { };
   KarmaList[Raid_Name][player]["fullname"] = player;
-  KarmaList[Raid_Name][player]["class"] = class;
+  KarmaList[Raid_Name][player]["class"] = dbclass
   KarmaList[Raid_Name][player]["points"] = 0;
   KarmaList[Raid_Name][player]["lifetime"] = 0;
   KarmaList[Raid_Name][player]["lastadd"] = date();
-  Karma_debug(1, "added " .. player .. " as " .. name .. "/" .. class);
+  Karma_debug(1, "added " .. player .. " as " .. name .. "/" .. dbclass .. "(" .. class .. ")");
 end
+
 
 function Karma_Show_Detail(player, msg)
 
@@ -408,7 +436,7 @@ function Karma_Show_Detail(player, msg)
     ShowTo = KARMA_SHOWTO_RAID;
   end
 
-  -- perform command    
+  -- perform command
   if (cmd == KMSG.KARMA) then
     Karma_SendTotal(player, ShowTo)
 
@@ -422,7 +450,7 @@ function Karma_Show_Detail(player, msg)
   elseif (cmd == KMSG.HISTORY) then
     for id, event in pairs(KarmaList[Raid_Name][player]) do
       if (tonumber(id)) then
-        
+
         Karma_message("[".. event["DT"] .. "] " .. KarmaList[Raid_Name][player]["fullname"] .. ": " .. event["value"] .. KMSG.COST .. event["reason"], ShowTo, player);
       end
     end
@@ -442,7 +470,7 @@ function Karma_SendTotal(player, ShowTo)
   if (KarmaList[Raid_Name][player]["points"] ~= nil) then
     pts = KarmaList[Raid_Name][player]["points"];
   end
-      
+
   if (ShowTo == KARMA_SHOWTO_PLAYER) then
     Karma_message(KMSG.CURRENT1 .. pts, ShowTo, player);
   else
@@ -505,7 +533,7 @@ function Karma_Add(cmd, add_type)
 end
 
 function Karma_Add_Player(player_name, points, reason, add_type)
-        
+
   if (reason == "" and add_type == "I") then
     -- If adding an item, reason can't be empty, it should contain item link
     Karma_message(KMSG.ADDITEM);
@@ -526,11 +554,13 @@ function Karma_Add_Player(player_name, points, reason, add_type)
     if (fullname ~= nil and fullname ~= "") then
       KarmaList[Raid_Name][player]["fullname"] = fullname;
 	  --[[ Dys: Old code was
-	  	  if (KarmaList[Raid_Name][player]["class"] ~= nil
-			and KarmaList[Raid_Name][player]["class"] ~= "unknown") then
-]]--
+	  if (KarmaList[Raid_Name][player]["class"] ~= nil
+			and KarmaList[Raid_Name][player]["class"] ~= class_unknown
+			and KarmaList[Raid_Name][player]["class"] ~= class_broken) then
+	  ]]--
 	-- DYS: If we have a valid class, overwrite the old one.
-	  if class ~= "unknown" then
+	  if ( class ~= class_unknown
+			 and class ~= class_broken) then
 		KarmaList[Raid_Name][player]["class"] = class;
 	  end
     end
@@ -550,7 +580,7 @@ function Karma_Mod_Player(kplayer, ktype, kvalue, kreason)
       end
     end
   end
-  
+
   -- check if you can go negative
   if ((not KarmaConfig["ALLOW_NEGATIVE_KARMA"]) and (KarmaList[Raid_Name][kplayer]["points"] + kvalue) < 0 and kvalue < 0) then
     kvalue = -KarmaList[Raid_Name][kplayer]["points"];
@@ -617,7 +647,7 @@ function Karma_Options(cmd)
       Karma_message(KMSG.KARMA_ROUNDING .. " = ".. KarmaConfig["KARMA_ROUNDING"]);
       return;
     end
-        
+
     if (opt == "" or setting == "") then
       Karma_message(KMSG.BADCOMMAND);
       Karma_Help();
@@ -652,13 +682,13 @@ function Karma_Options(cmd)
           KarmaConfig[opt] = tonumber(setting);
 
         end
-        
+
       else
         Karma_message(KMSG.BADOPTION);
         Karma_Help();
       end
     end
-    
+
   else
     Karma_message(KMSG.BADCOMMAND);
     Karma_Help();
@@ -696,7 +726,11 @@ function Karma_Player_Request(player, cmdline)
 		  local raidcnt = GetNumRaidMembers();
           for i = 1, raidcnt do
             local name, _, _, _, class = GetRaidRosterInfo(i);
-            if (cmd2 == string.lower(class) or cmd2 == string.lower(name)) then
+			local dbclass = Karma_GetDBClass(class);
+			if dbclass == nil then
+			    dbclass = class_broken
+			end
+            if (Karma_GetDBClass(cmd2) == dbclass or cmd2 == string.lower(name)) then
               Karma_Player_Request_Cmd(player, string.lower(name), cmd1, cmd2)
             end
           end
@@ -756,8 +790,8 @@ function Karma_Player_Request_Cmd(player, target, cmd1, cmd2)
     for id = firstid, lastid do
       local event = KarmaList[Raid_Name][target][id]
       if event then
-        if (tonumber(id)) then      
-          if (player ~= target) then   
+        if (tonumber(id)) then
+          if (player ~= target) then
             Karma_message(KarmaList[Raid_Name][target]["fullname"] ..": [".. event["DT"] .. "] " .. event["value"] .. KMSG.COST .. event["reason"], KARMA_SHOWTO_PLAYER, player);
           else
             Karma_message(KMSG.YOU .. ": [".. event["DT"] .. "] " .. event["value"] .. KMSG.COST .. event["reason"], KARMA_SHOWTO_PLAYER, player);
@@ -769,7 +803,7 @@ function Karma_Player_Request_Cmd(player, target, cmd1, cmd2)
   elseif (cmd1 == KMSG.ITEMS) then
     for id, event in pairs(KarmaList[Raid_Name][target]) do
       if (tonumber(id) and event["type"] == "I") then
-        if (player ~= target) then   
+        if (player ~= target) then
           Karma_message(KarmaList[Raid_Name][target]["fullname"] ..": [".. event["DT"] .. "] " .. event["value"] .. KMSG.COST .. event["reason"], KARMA_SHOWTO_PLAYER, player);
         else
           Karma_message(KMSG.YOU .. ": [".. event["DT"] .. "] " .. event["value"] .. KMSG.COST .. event["reason"], KARMA_SHOWTO_PLAYER, player);
@@ -946,19 +980,19 @@ end
 ----    Karma Roll Window Routines ----
 ---------------------------------------
 function KarmaRoll_OnLoad()
-  this:RegisterEvent("VARIABLES_LOADED"); 
-  this:RegisterEvent("CHAT_MSG_SYSTEM"); 
-  this:RegisterEvent("CHAT_MSG_WHISPER"); 
+  this:RegisterEvent("VARIABLES_LOADED");
+  this:RegisterEvent("CHAT_MSG_SYSTEM");
+  this:RegisterEvent("CHAT_MSG_WHISPER");
 
   -- Capture shift+click on an item
   -- Orig_ContainerFrameItemButton_OnClick = ContainerFrameItemButton_OnClick;
   -- ContainerFrameItemButton_OnClick = KarmaItem_OnClick;
 
   -- wow2.0 stuff for secure hooks
-  -- hooksecurefunc([table,] "functionName", hookfunc) 
-  hooksecurefunc( "ContainerFrameItemButton_OnClick", KarmaItem_OnClick) 
+  -- hooksecurefunc([table,] "functionName", hookfunc)
+  hooksecurefunc( "ContainerFrameItemButton_OnClick", KarmaItem_OnClick)
   hooksecurefunc( "HandleModifiedItemClick", KarmaLootItem_OnClick)
-  hooksecurefunc( "SetItemRef", Karma_SetItemRef) 
+  hooksecurefunc( "SetItemRef", Karma_SetItemRef)
 end
 
 -- Main event handler
@@ -980,12 +1014,12 @@ function KarmaRoll_OnEvent(event)
 	if (cmd == KMSG.BONUS or cmd == KMSG.NOBONUS or (cmd == KMSG.NOBONUS1 and cmd2 == KMSG.NOBONUS2)) then
       KarmaRoll_AddPlayer(arg2, cmd == KMSG.BONUS);
     end
-  elseif (Active and event == "CHAT_MSG_SYSTEM" and string.find(arg1, KMSG.SYS.ROLLS) and string.find(arg1, "%(1%-100%)")) then 
+  elseif (Active and event == "CHAT_MSG_SYSTEM" and string.find(arg1, KMSG.SYS.ROLLS) and string.find(arg1, "%(1%-100%)")) then
     _, _, player_name, player_roll = string.find(arg1, "(.+) " .. KMSG.SYS.ROLLS .. " (%d+)");
     if (player_name ~= nil and player_roll ~= nil) then
       KarmaRoll_Roll(player_name, player_roll);
     end
-  end 
+  end
 end
 
 -- A player declared intention to roll, add them to list
@@ -997,7 +1031,7 @@ function KarmaRoll_AddPlayer(player_name, use_bonus)
 	Karma_Newplayer(player);
   end
 
-  -- Check if they are already in list  
+  -- Check if they are already in list
   for i=1, #(RollList) do
     if (RollList[i][1] == name) then
       if (RollList[i][4] > 0) then
@@ -1094,9 +1128,9 @@ function KarmaRollList_Update()
 	RollList[i][3] = karma_used;
     RollList[i][5] = RollList[i][3] + RollList[i][4];
   end
-  
+
   table.sort(RollList, KarmaRoll_Sort);
-  
+
   for i=1, ROLLS_TO_DISPLAY do
     rollIndex = rollOffset + i;
     button = getglobal("KarmaRollFrameButton"..i);
@@ -1118,7 +1152,9 @@ function KarmaRollList_Update()
     -- This is the BASIS of the zero-sum property
       local final_value = ceil(roll_info[3] / 2 / KarmaConfig["KARMA_ROUNDING"]) * KarmaConfig["KARMA_ROUNDING"];
       local base_cost = tonumber(KarmaRollFrameBaseCost:GetText());
-      if (base_cost == nil) then base_cost = 0; end
+      if (base_cost == nil) then
+	    base_cost = 0;
+	  end
       if (final_value < base_cost) then
         KarmaRollFrameFinalKarma:SetText(base_cost);
       else
@@ -1136,8 +1172,8 @@ function KarmaRollList_Update()
     else
       button:Show();
     end
-  end  
-  
+  end
+
   -- Enable/disable buttons
   if (KarmaRollFrame.selectedRoller ~= nil and KarmaRollFrame.selectedRoller > 0 and
       KarmaRollFrameItem:GetText() ~= "") then
@@ -1145,7 +1181,7 @@ function KarmaRollList_Update()
   else
     KarmaRollFrameAwardButton:Disable();
   end
-  
+
   -- ScrollFrame stuff
   FauxScrollFrame_Update(KarmaRollScrollFrame, numRolls, ROLLS_TO_DISPLAY, ROLL_FRAME_ROLL_HEIGHT );
 
@@ -1168,7 +1204,7 @@ function KarmaRollFrameRollButton_OnClick(button)
     end
     KarmaRollList_Update();
   end
-  
+
 end
 
 -- Clear the rollers list
@@ -1256,7 +1292,7 @@ end
 
 
 function Karma_update_rollframe(tooltip, link)
-	Karma_debug(3, "update rollframe: link="..link);	  
+	Karma_debug(3, "update rollframe: link="..link);
 
 	-- there's one goofy bug here, if you have a tooltip up and click a link in chat, this
 	-- will not search the tooltip for "Classes:" correctly (as it will hide the tooltip).
@@ -1282,7 +1318,7 @@ function Karma_GetToken(msg)
 	if (a) then
       token= string.lower(token);
 	  extratext = extra;
-	  Karma_debug(5, "gettoken: t="..token.."|"..extratext);	  
+	  Karma_debug(5, "gettoken: t="..token.."|"..extratext);
       return token, extra;
     end
   end
@@ -1318,14 +1354,14 @@ end
 ------------------------------------------------------------------------------------------
 -- Command helper routines
 -- Created by Tigerheart (http://www.wowwiki.com/HOWTO:_Extract_Info_from_a_Slash_Command)
- 
+
 function Karma_GetArgument(msg)
   if (msg) then
     local a,b=string.find(msg, "[^=]+");
     if (not ((a==nil) and (b==nil))) then
-      local cmd=string.lower(string.sub(msg,a,b)); 
+      local cmd=string.lower(string.sub(msg,a,b));
       return cmd, string.sub(msg, string.find(cmd,"$")+1);
-    else  
+    else
       return "", "";
     end
   end
