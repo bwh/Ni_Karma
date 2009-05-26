@@ -140,9 +140,42 @@ KMSG.TOTAL = " karma for a total of "
 -- compacted entry
 KMSG.OLDENTRIES = "Karma From Old Entries"
 
--- not really a message, but will have localization issues
--- I'm using '|' for string searching, so it should have those at each end of each word
-KMSG.allclasses = "|druid|hunter|mage|paladin|priest|rogue|shaman|warlock|warrior|";
+-- OLD: not really a message, but will have localization issues
+-- OLD: I'm using '|' for string searching, so it should have those at each end of each word
+-- OLD: KMSG.allclasses = "|druid|hunter|mage|paladin|priest|rogue|shaman|warlock|warrior|";
+
+
+--
+-- KMSG.CLASS.localname = "db_class"
+-- You can have multiple localnames and aliases if you like.
+--
+KMSG.CLASS = { }
+
+-- This section has two parts.  First you must have the all classes as returned by GetRaidRosterInfo
+-- mapped to the english version.
+-- Next, you can have aliases, mapping to the appropriate english version.
+-- ex:
+-- ["hexenmeister"] = "Warlock",
+-- ["hexenmeisterin"] = "Warlock",
+-- ["warlock"] = "Warlock"
+-- ["dk"] = "Death Knight"
+--
+-- I didn't add all the languages here, because someone on the US client might name their warlock "Hexenmeister"
+-- Add the local names as needed based on GetLocale()
+--
+KMSG.CLASS.druid = "Druid"
+KMSG.CLASS.hunter = "Hunter"
+KMSG.CLASS.mage = "Mage"
+KMSG.CLASS.paladin = "Paladin"
+KMSG.CLASS.priest = "Priest"
+KMSG.CLASS.rogue = "Rogue"
+KMSG.CLASS.shaman = "Shaman"
+KMSG.CLASS.warlock = "Warlock"
+KMSG.CLASS.warrior = "Warrior"
+KMSG.CLASS["death knight"] = "Death Knight"
+-- aliases for the command /km show <class>
+KMSG.CLASS.deathknight = "Death Knight"
+KMSG.CLASS.dk = "Death Knight"
 
 -- roll window
 KMSG.ROLL = { };
@@ -160,7 +193,32 @@ KMSG.SYS.ROLLS = "rolls"
 if ( GetLocale() == "deDE" ) then
 
 -- system output
-KMSG.SYS.ROLLS = "würfelt. Ergebnis:"
+KMSG.SYS.ROLLS = "w\195\188rfelt. Ergebnis:"
+
+-- German names from Alexander 'Bl4ckSh33p' Spielvogel and his brother ESN
+-- Thanks!
+-- English names from above should also work.
+KMSG.CLASS = {
+	["hexenmeister"] = "Warlock",
+	["hexenmeisterin"] = "Warlock",
+	["krieger"] = "Warrior",
+	["kriegerin"] = "Warrior",
+	["j\195\164ger"] = "Hunter",
+	["j\195\164gerin"] = "Hunter",
+	["magier"] = "Mage",
+	["magierin"] = "Mage",
+	["priester"] = "Priest",
+	["priesterin"] = "Priest",
+	["druide"] = "Druid",
+	["druidin"] = "Druid",
+	["paladin"] = "Paladin",
+	["schamane"] = "Shaman",
+	["schamanin"] = "Shaman",
+	["schurke"] = "Rogue",
+	["schurkin"] = "Rogue",
+	["todesritter"] = "Death Knight",
+}
+
 
 -----------------------------------------------
 -- French localization
