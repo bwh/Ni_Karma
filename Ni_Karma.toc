@@ -1,0 +1,9 @@
+## Interface: 30000
+## Title: Ni Karma System [3.0 rel 01]
+## Version: 3.0 rel 01
+## Notes: Loot Distribution System for Raids
+## Author: Vuelhering and Mavios (Icecrown) http://www.knights-who-say-ni.com/
+## DefaultState: Enabled
+## LoadOnDemand: 0
+## SavedVariables: KarmaList, KarmaConfig
+Ni_Karma.xml
