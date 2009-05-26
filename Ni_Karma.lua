@@ -44,6 +44,9 @@ local OpenRoll = false;
 local min_deduction = 0;
 local max_deduction = 0;
 
+local class_broken = "fixlocal"
+local class_unknown = "unknown"
+
 local extratext = ""; -- used for Karma_GetNextTok
 
 local configpanel = {};	-- interface config panel
@@ -307,30 +310,41 @@ function Karma_Player_Help(player)
   Karma_message(KMSG.PLAYER_HELP3, KARMA_SHOWTO_PLAYER, player);
 end
 
+-- returns classname stored in db.  This is non-localized.
+function Karma_GetDBClass(class)
+    if class == nil then
+        return nil
+	end
+    return KMSG.CLASS[string.lower(class)]
+end
+
 function Karma_Show(cmd)
 
   if (cmd ~= "") then
     -- Get name and optional TO
     local player, extra = Karma_GetToken(cmd);
+	local dbclass = Karma_GetDBClass(player);
 
     -- Check for class display
-    if (string.find(KMSG.allclasses, "|" .. player .. "|", 1, true) ~= nil) then
+    -- Note that this can fail if some imaginative idiot names his character the same as a class.
+	-- I check class first, so that it won't break functionality of showing an entire class.
+    if (dbclass ~= nil) then
 
 	-- Loop through raid members, showing matching class
       local raidcnt = GetNumRaidMembers();
       for i = 1, raidcnt do
         local name, _, _, _, class = GetRaidRosterInfo(i);
-        if (player == string.lower(class)) then
+        if (dbclass == Karma_GetDBClass(class)) then
           Karma_Show_Detail(string.lower(name), extra);
         end
       end
-      
+
     elseif (player == KMSG.ALL) then
       
       -- Loop through all raid members
       local raidcnt = GetNumRaidMembers();
       for i = 1, raidcnt do
-        local name, _, _, _, class = GetRaidRosterInfo(i);
+        local name, _, _, _, _ = GetRaidRosterInfo(i);
         Karma_Show_Detail(string.lower(name), extra);
       end
       
@@ -346,39 +360,53 @@ end
 
 
 -- return lowercase name/index, name as seen, and class
--- if not found in raid, return name/name/unknown
+-- if not found in raid but found in db, return name/name/class
+-- if not found in raid or db, return name/name/unknown
 function Karma_Getstats(player_name)
   player = string.lower(player_name);  -- index is lowercase
 
-  local fullname, class, i;
+  local fullname, class, i, dbclass;
   local raidcnt = GetNumRaidMembers();
   for i = 1, raidcnt do
     fullname, _, _, _, class = GetRaidRosterInfo(i);
+	dbclass = Karma_GetDBClass(class)
+	if (dbclass == nil) then
+	  dbclass = class_broken
+    end
     if (string.lower(fullname) == player) then 
       return player, fullname, class;
     end
   end
-  return player, player, "unknown";
+  if (KarmaList[Raid_Name][player] ~= nil) then
+	  return player, KarmaList[Raid_Name][player].fullname, KarmaList[Raid_Name][player].class
+  end
+  return player, player, class_unknown;
 end
+
 
 function Karma_Newplayer(player_name)
   if (not Active) then
     return;
   end
   local player, name, class = Karma_Getstats(player_name);
+  local dbclass = Karma_GetDBClass(class);
 
   if (KarmaList[Raid_Name][player] ~= nil) then
 	  Karma_message("Error in Karma_Newplayer - player " .. player .. " exists!");
 	  return;
   end
+  if (dbclass == nil) then
+      dbclass = class_broken
+  end
   KarmaList[Raid_Name][player] = { };
   KarmaList[Raid_Name][player]["fullname"] = player;
-  KarmaList[Raid_Name][player]["class"] = class;
+  KarmaList[Raid_Name][player]["class"] = dbclass
   KarmaList[Raid_Name][player]["points"] = 0;
   KarmaList[Raid_Name][player]["lifetime"] = 0;
   KarmaList[Raid_Name][player]["lastadd"] = date();
-  Karma_debug(1, "added " .. player .. " as " .. name .. "/" .. class);
+  Karma_debug(1, "added " .. player .. " as " .. name .. "/" .. dbclass .. "(" .. class .. ")");
 end
+
 
 function Karma_Show_Detail(player, msg)
 
@@ -524,7 +552,8 @@ function Karma_Add_Player(player_name, points, reason, add_type)
     if (fullname ~= nil and fullname ~= "") then
       KarmaList[Raid_Name][player]["fullname"] = fullname;
 	  if (KarmaList[Raid_Name][player]["class"] ~= nil
-			and KarmaList[Raid_Name][player]["class"] ~= "unknown") then
+			and KarmaList[Raid_Name][player]["class"] ~= class_unknown
+			and KarmaList[Raid_Name][player]["class"] ~= class_broken) then
 		KarmaList[Raid_Name][player]["class"] = class;
 	  end
     end
@@ -690,7 +719,11 @@ function Karma_Player_Request(player, cmdline)
 		  local raidcnt = GetNumRaidMembers();
           for i = 1, raidcnt do
             local name, _, _, _, class = GetRaidRosterInfo(i);
-            if (cmd2 == string.lower(class) or cmd2 == string.lower(name)) then
+			local dbclass = Karma_GetDBClass(class);
+			if dbclass == nil then
+			    dbclass = class_broken
+			end
+            if (Karma_GetDBClass(cmd2) == dbclass or cmd2 == string.lower(name)) then
               Karma_Player_Request_Cmd(player, string.lower(name), cmd1, cmd2)
             end
           end
@@ -1112,7 +1145,9 @@ function KarmaRollList_Update()
     -- This is the BASIS of the zero-sum property
       local final_value = ceil(roll_info[3] / 2 / KarmaConfig["KARMA_ROUNDING"]) * KarmaConfig["KARMA_ROUNDING"];
       local base_cost = tonumber(KarmaRollFrameBaseCost:GetText());
-      if (base_cost == nil) then base_cost = 0; end
+      if (base_cost == nil) then
+	    base_cost = 0;
+	  end
       if (final_value < base_cost) then
         KarmaRollFrameFinalKarma:SetText(base_cost);
       else
