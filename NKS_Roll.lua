@@ -268,10 +268,8 @@ function KarmaRollFrameAwardButton_OnClick()
 	return;
     end
 -- DYS: Minor modifications here
--- TODO: Fixit
--- local my_value2 = KarmaRollFrameFinalKarma:GetText();
--- Karma_message(player .. KMSG.WINS .. KarmaRollFrameItem:GetText() .. KMSG.PAYING .. RollList[KarmaRollFrame.selectedRoller][3] .. " Karma. (rolled " .. RollList[KarmaRollFrame.selectedRoller][5]-RollList[KarmaRollFrame.selectedRoller][3] .. ") His/her total including roll is " .. RollList[KarmaRollFrame.selectedRoller][5] .. " (She/he lost ) " .. my_value2 .. " karma." , KARMA_SHOWTO_RAID);
-    Karma_message(player .. nks.KMSG.WINS .. KarmaRollFrameItem:GetText() .. nks.KMSG.USING .. nks.RollList[KarmaRollFrame.selectedRoller][3] .. nks.KMSG.TOTAL .. nks.RollList[KarmaRollFrame.selectedRoller][5] .. " (" .. KarmaRollFrameFinalKarma:GetText() .. nks.KMSG.PAYING .. ")" , nks.KARMA_SHOWTO_RAID);
+    local my_value2 = KarmaRollFrameFinalKarma:GetText();
+    Karma_message(player .. nks.KMSG.WINS .. KarmaRollFrameItem:GetText() .. nks.KMSG.USING .. nks.RollList[KarmaRollFrame.selectedRoller][3] .. " Karma. (rolled " .. nks.RollList[KarmaRollFrame.selectedRoller][5]-nks.RollList[KarmaRollFrame.selectedRoller][3] .. ") His/her total including roll is " .. nks.RollList[KarmaRollFrame.selectedRoller][5] .. ". She/he lost " .. my_value2 .. " karma." , nks.KARMA_SHOWTO_RAID);
     Karma_Add_Player(string.lower(player), value, KarmaRollFrameItem:GetText(), "I");
     TakeScreenshot()
     KarmaRollFrameAwardButton:Disable();
