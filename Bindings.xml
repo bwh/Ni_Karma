@@ -6,7 +6,7 @@
 	  elseif (KarmaConfig["CURRENT RAID"]) then
 		KarmaRollFrame:Show();
 	  else
-	    Karma_message(KMSG.DISABLED);
+	    Karma_message(nks.KMSG.DISABLED);
 	  end
 	</Binding>
 </Bindings>
