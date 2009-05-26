@@ -707,6 +707,23 @@
           </OnClick> 
         </Scripts> 
       </Button>
+      <Button name="$parentDeclareButton" inherits="UIPanelButtonTemplate" text="RW Announce">
+        <Size>
+          <AbsDimension x="100" y="20"/>
+        </Size>
+        <Anchors>
+          <Anchor point="BOTTOMLEFT">
+            <Offset>
+              <AbsDimension x="92" y="22"/>
+            </Offset>
+          </Anchor>
+        </Anchors>
+        <Scripts> 
+          <OnClick> 
+            KarmaRollFrame_RWAnnounce();
+          </OnClick> 
+        </Scripts> 
+      </Button>
       <Button name="$parentAwardButton" inherits="UIPanelButtonTemplate" text="Declare Winner">
         <Size>
           <AbsDimension x="130" y="20"/>

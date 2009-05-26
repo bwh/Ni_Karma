@@ -112,6 +112,7 @@ function Karma_OnEvent(event)
 
     if (KarmaConfig["DATAVERSION"] < DataVersion) then
 	-- version conflict with data, needs to be updated!
+		Karma_message(KMSG.VERMISMATCH1 .. KarmaConfig["VERSION"] .. KMSG.VERMISMATCH2);
 		Karma_update_data_popup();
     end
 	KarmaConfig["VERSION"] = Version;
@@ -479,6 +480,7 @@ function Karma_Add(cmd, add_type)
         if (online) then
           Karma_Add_Player(string.lower(name), points, reason, add_type);
         else
+          Karma_Add_Player(string.lower(name), points, reason, add_type);
 		  totalnames = totalnames + 1;
 		  if (totalnames > 10) then
 			  missedout = missedout .. "\n" .. name;
@@ -523,8 +525,12 @@ function Karma_Add_Player(player_name, points, reason, add_type)
 	-- fix previous errors of them being added while not in raid
     if (fullname ~= nil and fullname ~= "") then
       KarmaList[Raid_Name][player]["fullname"] = fullname;
-	  if (KarmaList[Raid_Name][player]["class"] ~= nil
+	  --[[ Dys: Old code was
+	  	  if (KarmaList[Raid_Name][player]["class"] ~= nil
 			and KarmaList[Raid_Name][player]["class"] ~= "unknown") then
+]]--
+	-- DYS: If we have a valid class, overwrite the old one.
+	  if class ~= "unknown" then
 		KarmaList[Raid_Name][player]["class"] = class;
 	  end
     end
@@ -1175,7 +1181,7 @@ end
 
 -- Declare winner
 function KarmaRollFrameAwardButton_OnClick()
-
+-- DYS: Minor modifications here
   local player = RollList[KarmaRollFrame.selectedRoller][1];
   local value = -tonumber(KarmaRollFrameFinalKarma:GetText());
   if (KarmaRollFrameItem:GetText() == "") then
@@ -1183,10 +1189,18 @@ function KarmaRollFrameAwardButton_OnClick()
     Karma_message(KMSG.ADDITEM);
     return;
   end
-  Karma_message(player .. KMSG.WINS .. KarmaRollFrameItem:GetText() .. KMSG.PAYING .. RollList[KarmaRollFrame.selectedRoller][3] .. KMSG.TOTAL .. RollList[KarmaRollFrame.selectedRoller][5], KARMA_SHOWTO_RAID);
+  local my_value2 = KarmaRollFrameFinalKarma:GetText();
+  Karma_message(player .. KMSG.WINS .. KarmaRollFrameItem:GetText() .. KMSG.PAYING .. RollList[KarmaRollFrame.selectedRoller][3] .. " Karma. (rolled " .. RollList[KarmaRollFrame.selectedRoller][5]-RollList[KarmaRollFrame.selectedRoller][3] .. ") His/her total including roll is " .. RollList[KarmaRollFrame.selectedRoller][5] .. " (She/he lost ) " .. my_value2 .. " karma." , KARMA_SHOWTO_RAID);
   Karma_Add_Player(string.lower(player), value, KarmaRollFrameItem:GetText(), "I");
+  TakeScreenshot()
   KarmaRollFrameAwardButton:Disable();
 
+end
+
+-- DYS: Announce button added
+function KarmaRollFrame_RWAnnounce()
+	local msg = "Please declare on " .. KarmaRollFrameItem:GetText() .. " to " .. UnitName("player") .. " and " .. UnitName("player") .. " only!";
+	SendChatMessage(msg, "RAID_WARNING");
 end
 
 -- hooked with hooksecurefunc

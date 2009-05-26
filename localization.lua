@@ -142,7 +142,7 @@ KMSG.OLDENTRIES = "Karma From Old Entries"
 
 -- not really a message, but will have localization issues
 -- I'm using '|' for string searching, so it should have those at each end of each word
-KMSG.allclasses = "|druid|hunter|mage|paladin|priest|rogue|shaman|warlock|warrior|";
+KMSG.allclasses = "|druid|hunter|mage|paladin|priest|rogue|shaman|warlock|warrior|death knight|dk";
 
 -- roll window
 KMSG.ROLL = { };
