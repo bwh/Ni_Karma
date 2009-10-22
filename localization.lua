@@ -55,7 +55,9 @@ nks.KMSG.CADD = "add"
 nks.KMSG.CSUB = "sub"
 nks.KMSG.CADDITEM = "additem"
 nks.KMSG.CSPAM = "spam"
-
+nks.KMSG.CSITOUT = "sitout"
+nks.KMSG.CREMOVE = "remove"
+nks.KMSG.CCLEAR = "clear"
 
 -- standard bonus/nobonus
 nks.KMSG.DECLARE = {}
@@ -100,7 +102,7 @@ nks.KMSG.ITEMS = "items"
 nks.KMSG.KARMA = "karma"
 
 nks.KMSG.HELP2 = "Fields in [brackets] are optional\nThe database name is case sensitive";
-nks.KMSG.HELP3 = "/KM command\nCommands:\n  HELP\n  OFF\n  INFO\n  ROLL\n  CREATE database\n  USE database\n  SHOW (playername\|class\|ALL) [KARMA\|ITEMS\|HISTORY] [TO\|RD]\n  ADD [-]# (ALL, player) [reason]\n  ADDITEM [-]# (ALL, player) itemlink [comment]\n  OPTION SHOW \| setting=ON\|OFF\|#\n  COMPACT #ofdays\n  SPAM";
+nks.KMSG.HELP3 = "/KM command\nCommands:\n  HELP\n  OFF\n  INFO\n  ROLL\n  CREATE database\n  USE database\n  SHOW (playername\|class\|ALL) [KARMA\|ITEMS\|HISTORY] [TO\|RD]\n  ADD [-]# (ALL, player) [reason]\n  ADDITEM [-]# (ALL, player) itemlink [comment]\n  OPTION SHOW \| setting=ON\|OFF\|#\n  COMPACT #ofdays\n  SPAM\n  SITOUT";
 
 -- player messages when sending "km <command>" tells to the loot master
 nks.KMSG.PLAYER_HELP1 = "Ni Karma System Help"
@@ -217,6 +219,11 @@ nks.KMSG.SYS.ROLLS = "rolls"
 
 nks.KMSG.CLASSES = "Classes:"
 
+nks.KMSG.ADDEDSITOUT = "Added sitout: "
+nks.KMSG.REMOVEDSITOUT = "Removed sitout: "
+nks.KMSG.CLEAREDSITOUTS = "Cleared all sitouts."
+nks.KMSG.SITOUTS = "Sitouts: "
+nks.KMSG.SITOUT_HELP = "Sitout commands:\n sitout add <player1> <player2> ...: Add players to sitout list\n sitout remove <player1> <player2> ...: Remove players from sitout list\n sitout clear: Clear sitout list\n sitout show: Show current sitout list\n"
 
 -----------------------------------------------
 -- German localization

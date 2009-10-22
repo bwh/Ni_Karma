@@ -172,6 +172,9 @@ function Karma_command(msg)
     elseif (cmd == nks.KMSG.CADDITEM) then
       Karma_Add(subcmd, "I");
 
+    elseif (cmd == nks.KMSG.CSITOUT) then
+      Karma_Sitout(subcmd);
+
     else
       Karma_Help();
 
@@ -261,6 +264,10 @@ function Karma_Help()
   Karma_message(nks.KMSG.HELP1 .. nks.Version);
   Karma_message(nks.KMSG.HELP2);
   Karma_message(nks.KMSG.HELP3);
+end
+
+function Karma_Sitout_Help()
+  Karma_message(nks.KMSG.SITOUT_HELP)
 end
 
 function Karma_Player_Help(player)
@@ -461,13 +468,16 @@ function Karma_Add(cmd, add_type)
       local raidcnt = GetNumRaidMembers();
 	  local missedout = "";
 	  local totalnames=0;
+	  local gaveKarma = {}
 	  for i = 1, raidcnt do
         local name, _, _, _, _, _, _, online = GetRaidRosterInfo(i);
         if (online) then
           Karma_Add_Player(string.lower(name), points, reason, add_type);
+          gaveKarma[string.lower(name)] = true
         else
 		  -- Dys: Give karma to offline people
 		  Karma_Add_Player(string.lower(name), points, reason, add_type);
+		  gaveKarma[string.lower(name)] = true
 		  totalnames = totalnames + 1;
 		  if (totalnames > 10) then
 			  missedout = missedout .. "\n" .. name;
@@ -477,6 +487,13 @@ function Karma_Add(cmd, add_type)
 		  end
         end
       end
+	  if KarmaConfig["CURRENT_SITOUTS"] then
+		  for name in pairs(KarmaConfig["CURRENT_SITOUTS"]) do
+			if not gaveKarma[string.lower(name)] then
+			  Karma_Add_Player(string.lower(name), points, reason, add_type);
+			end
+		  end
+	  end
       if (missedout ~= "") then
 		  Karma_message(nks.KMSG.OFFLINELIST .. missedout);
 	  end
@@ -516,8 +533,8 @@ function Karma_Add_Player(player_name, points, reason, add_type)
 	  if (KarmaList[Raid_Name][player]["class"] ~= nil
 			and KarmaList[Raid_Name][player]["class"] ~= nks.class_unknown
 			and KarmaList[Raid_Name][player]["class"] ~= nks.class_broken) then
-	  ]]--
-	  -- DYS: If we have a valid class, overwrite the old one.
+]]--
+	-- DYS: If we have a valid class, overwrite the old one.
 	  if ( class ~= nks.class_unknown
 			and class ~= nks.class_broken) then
 		KarmaList[Raid_Name][player]["class"] = class;
@@ -577,6 +594,56 @@ function Karma_Mod_Player(kplayer, ktype, kvalue, kreason)
   end
 end
 
+function Karma_AddSitout(name)
+    KarmaConfig["CURRENT_SITOUTS"] = KarmaConfig["CURRENT_SITOUTS"] or {};
+    KarmaConfig["CURRENT_SITOUTS"][string.lower(name)] = true;
+    Karma_message(nks.KMSG.ADDEDSITOUT .. name);
+end
+
+function Karma_RemoveSitout(name)
+    if KarmaConfig["CURRENT_SITOUTS"] and KarmaConfig["CURRENT_SITOUTS"][string.lower(name)] then
+        Karma_message(nks.KMSG.REMOVEDSITOUT .. name);
+        KarmaConfig["CURRENT_SITOUTS"][string.lower(name)] = nil
+    end
+end
+
+function Karma_ShowSitouts()
+    if KarmaConfig["CURRENT_SITOUTS"] then
+        local message = "";
+        for nm in pairs(KarmaConfig["CURRENT_SITOUTS"]) do
+            message = message .. nm .. ", ";
+        end
+        message = string.sub(message, 1, -3);
+        Karma_message(nks.KMSG.SITOUTS .. message);
+    end
+end
+
+function Karma_Sitout(cmd)
+    local args
+    cmd, args = Karma_GetToken(cmd);
+    cmd = Karma_StripTok(cmd);
+
+    if (cmd ==nks.KMSG.CADD) then
+        for nm in string.gmatch(args, "%s?([^%s]+)%s?") do
+            Karma_AddSitout(nm);
+        end
+
+    elseif (cmd == nks.KMSG.CREMOVE) then
+        for nm in string.gmatch(args, "%s?([^%s]+)%s?") do
+            Karma_RemoveSitout(nm);
+        end
+
+    elseif (cmd == nks.KMSG.CSHOW) then
+        Karma_ShowSitouts();
+
+    elseif (cmd == nks.KMSG.CCLEAR) then
+        Karma_message(nks.KMSG.CLEAREDSITOUTS);
+        KarmaConfig["CURRENT_SITOUTS"] = nil;
+
+    else
+        Karma_Sitout_Help();
+    end
+end
 
 function Karma_Options(cmd)
   if (cmd ~= "") then
